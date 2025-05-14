@@ -6,9 +6,8 @@ const app = express();
 
 // Set the port number for the server
 const port:number = 3000;
-
-// Define a route for the root path ('/')
-app.use('/',routes)
+app.use(express.json())
+app.use(routes)
 
 // Start the server and listen on the specified port
 app.listen(port, () => {
