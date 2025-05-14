@@ -1,5 +1,5 @@
 // Import the 'express' module
-
+import { routes } from "./routes";
 import express from "express";
 // Create an Express application
 const app = express();
@@ -8,10 +8,7 @@ const app = express();
 const port:number = 3000;
 
 // Define a route for the root path ('/')
-app.get('/', (req, res) => {
-  // Send a response to the client
-  res.send('Hello, TypeScript + Node.js + Express!');
-});
+app.use('/',routes)
 
 // Start the server and listen on the specified port
 app.listen(port, () => {
