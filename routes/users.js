@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { signup } from "../controllers/auth.js";
+import { login } from "../controllers/auth.js";
 const router = Router()
 
 router.get("/demo",(req,res)=>{
@@ -8,4 +9,5 @@ router.get("/demo",(req,res)=>{
     }).status(201)
 })
 router.post("/signup",signup)
+router.post("/login",login)
 export {router}

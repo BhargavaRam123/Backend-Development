@@ -112,3 +112,101 @@ export const validateContactNumber = (contactNumber) => {
     return phoneRegex.test(contactNumber);
 };
 
+
+// Login controller
+export const login = async (req, res) => {
+    try {
+        console.log(req.body);
+        const { email, password } = req.body;
+
+        // Check if email and password are provided
+        if (!email || !password) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Please provide email and password' 
+            });
+        }
+
+        // Find user by email
+        const user = await User.findOne({ email });
+        
+        // Check if user exists
+        if (!user) {
+            return res.status(401).json({ 
+                success: false,
+                message: 'Invalid credentials' 
+            });
+        }
+
+        // Compare password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        
+        if (!isPasswordValid) {
+            return res.status(401).json({ 
+                success: false,
+                message: 'Invalid credentials' 
+            });
+        }
+
+        // Generate JWT token
+        const token = jwt.sign(
+            { 
+                userId: user._id, 
+                email: user.email 
+            },
+            process.env.JWT_SECRET || 'your-secret-key',
+            { 
+                expiresIn: '3d' // 3 days, matching cookie expiration
+            }
+        );
+
+        // Set cookie with token
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Only use secure in production
+            sameSite: 'strict', // CSRF protection
+            expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days
+        });
+
+        // Send success response (without token in body)
+        res.status(200).json({
+            success: true,
+            message: "Login successful",
+            user: {
+                _id: user._id,
+                firstname: user.firstname,
+                lastname: user.lastname,
+                email: user.email,
+                contactNumber: user.contactNumber
+            }
+        });
+
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error during login' 
+        });
+    }
+};
+
+// Optional: Logout controller to clear the token
+export const logout = async (req, res) => {
+    try {
+        const userId = req.user.userId; // Assuming you have authentication middleware
+        
+        // Clear the token from the database
+        await User.findByIdAndUpdate(userId, { token: null });
+        
+        res.status(200).json({
+            success: true,
+            message: 'Logout successful'
+        });
+    } catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error during logout' 
+        });
+    }
+};
