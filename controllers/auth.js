@@ -149,22 +149,23 @@ export const login = async (req, res) => {
         }
 
         // Generate JWT token
+
+        console.log("login token ",process.env.JWT_SECRET,user._id,user.email);
         const token = jwt.sign(
             { 
                 userId: user._id, 
                 email: user.email 
             },
-            process.env.JWT_SECRET || 'your-secret-key',
+            process.env.JWT_SECRET,
             { 
                 expiresIn: '3d' // 3 days, matching cookie expiration
             }
         );
+        console.log("token value is",token);
 
         // Set cookie with token
         res.cookie("token", token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // Only use secure in production
-            sameSite: 'strict', // CSRF protection
             expires: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) // 3 days
         });
 
@@ -198,6 +199,16 @@ export const logout = async (req, res) => {
         // Clear the token from the database
         await User.findByIdAndUpdate(userId, { token: null });
         
+        // Clear the cookie if you're storing the token in cookies
+        res.clearCookie('token'); // 'token' is the name of your cookie
+        
+        // If you're using a different cookie name or options, use:
+        // res.clearCookie('jwt', { 
+        //     httpOnly: true,
+        //     secure: process.env.NODE_ENV === 'production',
+        //     sameSite: 'strict'
+        // });
+        
         res.status(200).json({
             success: true,
             message: 'Logout successful'
@@ -207,6 +218,69 @@ export const logout = async (req, res) => {
         res.status(500).json({ 
             success: false,
             message: 'Server error during logout' 
+        });
+    }
+};
+
+export const resetPassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        const userId = req.user.userId; // From authentication middleware
+
+        // Validate input
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide current password and new password'
+            });
+        }
+
+        // Validate new password length (basic validation)
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'New password must be at least 6 characters long'
+            });
+        }
+
+        // Find user
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Verify current password
+        const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+        
+        if (!isPasswordValid) {
+            return res.status(401).json({
+                success: false,
+                message: 'Current password is incorrect'
+            });
+        }
+
+        // Hash new password
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+        // Update password
+        user.password = hashedPassword;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Password reset successfully'
+        });
+
+    } catch (error) {
+        console.error('Reset password error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error resetting password'
         });
     }
 };
